@@ -28,6 +28,7 @@ class _MessageScreenState extends State<MessageScreen> {
   void _sendMessage() {
     if (_message.text.isNotEmpty) {
       widget.service!.publish(_message.text);
+      _message.clear();
     }
   }
 
@@ -35,6 +36,7 @@ class _MessageScreenState extends State<MessageScreen> {
   Widget build(BuildContext context) {
     return Consumer<MqttModel>(
       builder: (context, model, child) {
+        print(model.message.length);
         return Scaffold(
           backgroundColor: Colors.blue,
           body: Column(
@@ -50,6 +52,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   ),
                   child: ListView.builder(
                     itemCount: widget.model!.message.length,
+                    padding: EdgeInsets.only(top: 20.0),
                     itemBuilder: (context, index) {
                       return Container(
                         padding: EdgeInsets.symmetric(

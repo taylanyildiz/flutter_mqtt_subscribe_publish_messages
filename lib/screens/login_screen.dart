@@ -164,7 +164,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     final isConnect = await _mqttService.initializeMQTT();
     if (isConnect) {
-      _connection = -150.0;
+      if (pageCount > 2) {
+        _pageController.jumpToPage(2);
+      } else {
+        _pageController.jumpToPage(1);
+      }
     } else {
       setState(() {
         _connection = 0.0;
@@ -178,186 +182,190 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    return ListenableProvider.value(
-      value: _pageController,
-      child: Scaffold(
-        appBar: AppBar(
-          elevation: 0.0,
-          title: Consumer<PageController>(
-            builder: (context, page, child) {
-              double value = 0;
-              if (page.position.hasContentDimensions) {
-                value = page.page!;
-              }
-              return Text(
-                currentPage != 2 ? '${widget.title}' : 'Messages',
-              );
-            },
-          ),
-          centerTitle: true,
-          actions: [
-            Consumer<PageController>(
+    return ChangeNotifierProvider(
+      create: (_) => _model,
+      child: ListenableProvider.value(
+        value: _pageController,
+        child: Scaffold(
+          appBar: AppBar(
+            elevation: 0.0,
+            title: Consumer<PageController>(
+              builder: (context, page, child) {
+                double value = 0;
+                if (page.position.hasContentDimensions) {
+                  value = page.page!;
+                }
+                return Text(
+                  currentPage != 2 ? '${widget.title}' : 'Messages',
+                );
+              },
+            ),
+            centerTitle: true,
+            actions: [
+              Consumer<PageController>(
+                builder: (context, page, child) {
+                  double value = 0;
+                  if (page.position.hasContentDimensions) {
+                    value = page.page!;
+                  }
+                  return Opacity(
+                    opacity: pageCount > 2
+                        ? value > 1
+                            ? value - 1
+                            : 0
+                        : value > 0
+                            ? value
+                            : 0,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: 5.0 *
+                            (pageCount > 2
+                                ? value > 1
+                                    ? value
+                                    : 0.0
+                                : value > 0
+                                    ? 2 * value
+                                    : 0.0),
+                      ),
+                      child: IgnorePointer(
+                        ignoring: value != 2,
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: IconButton(
+                  onPressed: () => print(''),
+                  icon: Icon(Icons.logout),
+                ),
+              ),
+            ],
+            leading: Consumer<PageController>(
               builder: (context, page, child) {
                 double value = 0;
                 if (page.position.hasContentDimensions) {
                   value = page.page!;
                 }
                 return Opacity(
-                  opacity: pageCount > 2
-                      ? value > 1
-                          ? value - 1
-                          : 0
-                      : value > 0
-                          ? value
-                          : 0,
+                  opacity: value <= 1 ? value : 1.0,
                   child: Padding(
                     padding: EdgeInsets.only(
-                      right: 5.0 *
-                          (pageCount > 2
-                              ? value > 1
-                                  ? value
-                                  : 0.0
-                              : value > 0
-                                  ? 2 * value
-                                  : 0.0),
-                    ),
+                        left: 10.0 * (value <= 1 ? value : 1.0)),
                     child: IgnorePointer(
-                      ignoring: value != 2,
-                      child: child,
+                      ignoring: value == 0,
+                      child: IconButton(
+                        onPressed: () => _pageController.animateToPage(
+                          --currentPage,
+                          duration: Duration(milliseconds: 400),
+                          curve: Curves.linear,
+                        ),
+                        icon: Icon(Icons.arrow_back_ios),
+                      ),
                     ),
                   ),
                 );
               },
-              child: IconButton(
-                onPressed: () => print(''),
-                icon: Icon(Icons.logout),
-              ),
             ),
-          ],
-          leading: Consumer<PageController>(
-            builder: (context, page, child) {
-              double value = 0;
-              if (page.position.hasContentDimensions) {
-                value = page.page!;
-              }
-              return Opacity(
-                opacity: value <= 1 ? value : 1.0,
-                child: Padding(
-                  padding:
-                      EdgeInsets.only(left: 10.0 * (value <= 1 ? value : 1.0)),
-                  child: IgnorePointer(
-                    ignoring: value == 0,
-                    child: IconButton(
-                      onPressed: () => _pageController.animateToPage(
-                        --currentPage,
-                        duration: Duration(milliseconds: 400),
-                        curve: Curves.linear,
-                      ),
-                      icon: Icon(Icons.arrow_back_ios),
+          ),
+          body: Stack(
+            children: [
+              PageView.builder(
+                controller: _pageController,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: pageCount,
+                onPageChanged: (page) => currentPage = page,
+                itemBuilder: (context, index) {
+                  index == 1
+                      ? _nodes[3].requestFocus()
+                      : _nodes[0].requestFocus();
+                  return _inputText(context, index);
+                },
+              ),
+              CheckUserNameandPassword(
+                checkColor: Colors.green,
+                onPressed: (check) {
+                  if (check) {
+                    pageCount = 3;
+                  } else {
+                    pageCount = 2;
+                  }
+                  setState(() {});
+                },
+              ),
+              AnimatedPositioned(
+                right: _connection,
+                bottom: size.height / 6,
+                duration: Duration(milliseconds: 400),
+                child: Container(
+                  padding: EdgeInsets.all(10.0),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(10.0),
+                      topLeft: Radius.circular(10.0),
+                    ),
+                  ),
+                  child: Text(
+                    'Connection failed',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.0,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-        body: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              //physics: NeverScrollableScrollPhysics(),
-              itemCount: pageCount,
-              onPageChanged: (page) => currentPage = page,
-              itemBuilder: (context, index) {
-                index == 1
-                    ? _nodes[3].requestFocus()
-                    : _nodes[0].requestFocus();
-                return _inputText(context, index);
-              },
-            ),
-            CheckUserNameandPassword(
-              checkColor: Colors.green,
-              onPressed: (check) {
-                if (check) {
-                  pageCount = 3;
-                } else {
-                  pageCount = 2;
-                }
-                setState(() {});
-              },
-            ),
-            AnimatedPositioned(
-              right: _connection,
-              bottom: size.height / 6,
-              duration: Duration(milliseconds: 400),
-              child: Container(
-                padding: EdgeInsets.all(10.0),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10.0),
-                    topLeft: Radius.circular(10.0),
-                  ),
-                ),
-                child: Text(
-                  'Connection failed',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13.0,
-                  ),
-                ),
               ),
-            ),
-            Consumer<PageController>(builder: (context, page, child) {
-              double value = 0;
-              if (page.position.hasContentDimensions) {
-                value = page.page!;
-              }
-              return Positioned(
-                bottom: pageCount > 2
-                    ? currentPage == 2
-                        ? (20 * (2 - value))
-                        : 20.0
-                    : currentPage == 1
-                        ? (20 * (1 - value))
-                        : 20.0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  ignoring: pageCount > 2 ? currentPage == 2 : currentPage == 1,
-                  child: Opacity(
-                    opacity: pageCount > 2
-                        ? currentPage == 2
-                            ? (2 - value)
-                            : 1.0
-                        : currentPage == 1
-                            ? (1 - value)
-                            : 1.0,
-                    child: Center(
-                      child: SizedBox(
-                        width: size.width * .8,
-                        child: MaterialButton(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          onPressed: () => _nextPage(),
-                          child: Text(
-                            'Next',
-                            style: TextStyle(
-                              fontSize: 20.0,
+              Consumer<PageController>(builder: (context, page, child) {
+                double value = 0;
+                if (page.position.hasContentDimensions) {
+                  value = page.page!;
+                }
+                return Positioned(
+                  bottom: pageCount > 2
+                      ? currentPage == 2
+                          ? (20 * (2 - value))
+                          : 20.0
+                      : currentPage == 1
+                          ? (20 * (1 - value))
+                          : 20.0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    ignoring:
+                        pageCount > 2 ? currentPage == 2 : currentPage == 1,
+                    child: Opacity(
+                      opacity: pageCount > 2
+                          ? currentPage == 2
+                              ? (2 - value)
+                              : 1.0
+                          : currentPage == 1
+                              ? (1 - value)
+                              : 1.0,
+                      child: Center(
+                        child: SizedBox(
+                          width: size.width * .8,
+                          child: MaterialButton(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
+                            onPressed: () => _nextPage(),
+                            child: Text(
+                              'Next',
+                              style: TextStyle(
+                                fontSize: 20.0,
+                              ),
+                            ),
+                            color: Colors.blue,
+                            textColor: Colors.white,
                           ),
-                          color: Colors.blue,
-                          textColor: Colors.white,
                         ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ],
+                );
+              }),
+            ],
+          ),
         ),
       ),
     );

@@ -14,7 +14,6 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => InputVisibility()),
-        ChangeNotifierProvider(create: (_) => MqttModel()),
       ],
       child: MaterialApp(
         title: 'Flutter MQTT Demo',
