@@ -6,12 +6,9 @@ import 'package:provider/provider.dart';
 class MessageScreen extends StatefulWidget {
   final MQTTService? service;
 
-  final MqttModel? model;
-
   const MessageScreen({
     Key? key,
     this.service,
-    this.model,
   }) : super(key: key);
   @override
   _MessageScreenState createState() => _MessageScreenState();
@@ -36,7 +33,6 @@ class _MessageScreenState extends State<MessageScreen> {
   Widget build(BuildContext context) {
     return Consumer<MqttModel>(
       builder: (context, model, child) {
-        print(model.message.length);
         return Scaffold(
           backgroundColor: Colors.blue,
           body: Column(
@@ -51,7 +47,7 @@ class _MessageScreenState extends State<MessageScreen> {
                     ),
                   ),
                   child: ListView.builder(
-                    itemCount: widget.model!.message.length,
+                    itemCount: model.message.length,
                     padding: EdgeInsets.only(top: 20.0),
                     itemBuilder: (context, index) {
                       return Container(
@@ -59,7 +55,7 @@ class _MessageScreenState extends State<MessageScreen> {
                             horizontal: 25.0, vertical: 15.0),
                         decoration: BoxDecoration(
                           color: Colors.pink[200],
-                          borderRadius: widget.model!.message[index].id != 0
+                          borderRadius: model.message[index].id != 0
                               ? BorderRadius.only(
                                   topLeft: Radius.circular(20.0),
                                   bottomLeft: Radius.circular(20.0),
@@ -69,12 +65,12 @@ class _MessageScreenState extends State<MessageScreen> {
                                   bottomRight: Radius.circular(20.0),
                                 ),
                         ),
-                        margin: widget.model!.message[index].id != 0
+                        margin: model.message[index].id != 0
                             ? EdgeInsets.only(top: 8.0, bottom: 8.0, left: 80.0)
                             : EdgeInsets.only(
                                 top: 8.0, bottom: 8.0, right: 80.0),
                         child: Text(
-                          widget.model!.message[index].message,
+                          model.message[index].message,
                         ),
                       );
                     },
@@ -83,7 +79,7 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
               Container(
                 color: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                padding: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 10.0),
                 height: 70.0,
                 child: Row(
                   children: [
@@ -91,14 +87,15 @@ class _MessageScreenState extends State<MessageScreen> {
                       child: TextField(
                         controller: _message,
                         autofocus: true,
-                        decoration: InputDecoration.collapsed(
-                          hintText: 'Send message',
+                        decoration: InputDecoration(
+                          hintText: 'Send message...',
                           hintStyle: TextStyle(
                             color: Colors.black,
                           ),
                         ),
                       ),
                     ),
+                    SizedBox(width: 5.0),
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.blue,

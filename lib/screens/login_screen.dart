@@ -16,7 +16,8 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   void _inputInitialized() {
     _formKeyHost = GlobalKey<FormState>();
     _formKeyUser = GlobalKey<FormState>();
@@ -29,12 +30,24 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _scaleController =
+        AnimationController(vsync: this, duration: Duration(milliseconds: 400));
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        curve: Curves.elasticOut,
+        parent: _scaleController,
+      ),
+    );
     _pageController = PageController();
     _inputInitialized();
     _model = MqttModel();
   }
 
   late PageController _pageController;
+
+  late AnimationController _scaleController;
+
+  late Animation<double> _scaleAnimation;
 
   late MqttModel _model;
 
@@ -60,7 +73,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool haveUser = false;
 
+  bool _visible = false;
+
   double _connection = -150.0;
+
+  late MQTTService _mqttService;
 
   final _hints = <String>['Host', 'Port', 'Topic', 'User Name', 'Password'];
 
@@ -92,10 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
             )
           : MessageScreen();
     } else {
-      return MessageScreen(
-        service: _mqttService,
-        model: _model,
-      );
+      return MessageScreen(service: _mqttService);
     }
   }
 
@@ -141,8 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  late MQTTService _mqttService;
-
   void _connectionMqtt(String host, int port, String topic,
       {String? username, String? password}) async {
     if (username != null && password != null) {
@@ -162,14 +174,28 @@ class _LoginScreenState extends State<LoginScreen> {
         model: _model,
       );
     }
+    setState(() => _visible = true);
     final isConnect = await _mqttService.initializeMQTT();
     if (isConnect) {
       if (pageCount > 2) {
+        await Future.delayed(Duration(seconds: 1), () {
+          setState(() => _visible = false);
+          _scaleController.forward();
+        });
+        await Future.delayed(
+            Duration(milliseconds: 700), () => _scaleController.reset());
         _pageController.jumpToPage(2);
       } else {
+        await Future.delayed(Duration(seconds: 1), () {
+          setState(() => _visible = false);
+          _scaleController.forward();
+        });
+        await Future.delayed(
+            Duration(milliseconds: 700), () => _scaleController.reset());
         _pageController.jumpToPage(1);
       }
     } else {
+      await Future.delayed(Duration(milliseconds: 300), () => _visible = false);
       setState(() {
         _connection = 0.0;
       });
@@ -196,7 +222,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   value = page.page!;
                 }
                 return Text(
-                  currentPage != 2 ? '${widget.title}' : 'Messages',
+                  pageCount <= 2
+                      ? currentPage != 1
+                          ? '${widget.title}'
+                          : 'Messages'
+                      : currentPage != 2
+                          ? '${widget.title}'
+                          : 'Messages',
                 );
               },
             ),
@@ -228,14 +260,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : 0.0),
                       ),
                       child: IgnorePointer(
-                        ignoring: value != 2,
+                        ignoring: pageCount > 2 ? value != 2 : value != 1,
                         child: child,
                       ),
                     ),
                   );
                 },
                 child: IconButton(
-                  onPressed: () => print(''),
+                  onPressed: () async {
+                    await _mqttService.disconnectionMQTT();
+                    _pageController.jumpToPage(0);
+                  },
                   icon: Icon(Icons.logout),
                 ),
               ),
@@ -247,7 +282,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   value = page.page!;
                 }
                 return Opacity(
-                  opacity: value <= 1 ? value : 1.0,
+                  opacity: pageCount <= 2
+                      ? currentPage != 1
+                          ? value
+                          : 0.0
+                      : currentPage != 2 && value <= 1
+                          ? value
+                          : 0.0,
                   child: Padding(
                     padding: EdgeInsets.only(
                         left: 10.0 * (value <= 1 ? value : 1.0)),
@@ -315,6 +356,40 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              Positioned(
+                  bottom: 150.0,
+                  left: 0.0,
+                  right: 0.0,
+                  child: Center(
+                      child: Stack(
+                    children: [
+                      AnimatedBuilder(
+                        animation: _scaleAnimation,
+                        builder: (context, child) => Transform(
+                          transform: Matrix4.identity()
+                            ..scale(_scaleAnimation.value),
+                          child: child,
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.all(5.0),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Visibility(
+                        visible: _visible,
+                        child: CircularProgressIndicator(
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ))),
               Consumer<PageController>(builder: (context, page, child) {
                 double value = 0;
                 if (page.position.hasContentDimensions) {
