@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mqtt_client/mqtt_client.dart';
+import 'package:mqtt_exam/models/mqtt_model.dart';
 import 'package:mqtt_exam/services/mqtt_service.dart';
 import 'package:mqtt_exam/widgets/widget.dart';
 import 'package:provider/provider.dart';
@@ -29,9 +31,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _pageController = PageController();
     _inputInitialized();
+    _model = MqttModel();
   }
 
   late PageController _pageController;
+
+  late MqttModel _model;
 
   final _nodes = <FocusNode>[];
 
@@ -51,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   int currentPage = 0;
 
-  int page = 2;
+  int pageCount = 2;
 
   bool haveUser = false;
 
@@ -75,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
         labels: [_hints[0], _hints[1], _hints[2]],
       );
     }
-    if (page > 2) {
+    if (pageCount > 2) {
       return index == 1
           ? InputWidget(
               exp: "Entry Server User Name and Password",
@@ -87,7 +92,10 @@ class _LoginScreenState extends State<LoginScreen> {
             )
           : MessageScreen();
     } else {
-      return MessageScreen();
+      return MessageScreen(
+        service: _mqttService,
+        model: _model,
+      );
     }
   }
 
@@ -109,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _nodes[2].requestFocus();
       }
       if (checkInput) {
-        page > 2
+        pageCount > 2
             ? _pageController.animateToPage(
                 1,
                 duration: Duration(milliseconds: 200),
@@ -117,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
               )
             : _connectionMqtt(_host, int.parse(_port), _topic);
       }
-    } else if (page > 2 && currentPage == 1) {
+    } else if (pageCount > 2 && currentPage == 1) {
       bool checkInput = _formKeyUser.currentState!.validate();
       _username = _textControllers[3].text;
       _password = _textControllers[4].text;
@@ -139,8 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
       {String? username, String? password}) async {
     if (username != null && password != null) {
       _mqttService = MQTTService(
+        model: _model,
         host: host,
         port: port,
+        topic: topic,
         userName: username,
         passWord: password,
       );
@@ -148,11 +158,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _mqttService = MQTTService(
         host: host,
         port: port,
+        topic: topic,
+        model: _model,
       );
     }
-
-    await _mqttService.initializeMQTT();
-    final isConnect = await _mqttService.connectionMQTT();
+    final isConnect = await _mqttService.initializeMQTT();
     if (isConnect) {
       _connection = -150.0;
     } else {
@@ -185,7 +195,45 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           ),
           centerTitle: true,
-          actions: [],
+          actions: [
+            Consumer<PageController>(
+              builder: (context, page, child) {
+                double value = 0;
+                if (page.position.hasContentDimensions) {
+                  value = page.page!;
+                }
+                return Opacity(
+                  opacity: pageCount > 2
+                      ? value > 1
+                          ? value - 1
+                          : 0
+                      : value > 0
+                          ? value
+                          : 0,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: 5.0 *
+                          (pageCount > 2
+                              ? value > 1
+                                  ? value
+                                  : 0.0
+                              : value > 0
+                                  ? 2 * value
+                                  : 0.0),
+                    ),
+                    child: IgnorePointer(
+                      ignoring: value != 2,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: IconButton(
+                onPressed: () => print(''),
+                icon: Icon(Icons.logout),
+              ),
+            ),
+          ],
           leading: Consumer<PageController>(
             builder: (context, page, child) {
               double value = 0;
@@ -218,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
             PageView.builder(
               controller: _pageController,
               //physics: NeverScrollableScrollPhysics(),
-              itemCount: page,
+              itemCount: pageCount,
               onPageChanged: (page) => currentPage = page,
               itemBuilder: (context, index) {
                 index == 1
@@ -231,9 +279,9 @@ class _LoginScreenState extends State<LoginScreen> {
               checkColor: Colors.green,
               onPressed: (check) {
                 if (check) {
-                  page = 3;
+                  pageCount = 3;
                 } else {
-                  page = 2;
+                  pageCount = 2;
                 }
                 setState(() {});
               },
@@ -267,27 +315,42 @@ class _LoginScreenState extends State<LoginScreen> {
                 value = page.page!;
               }
               return Positioned(
-                bottom: currentPage == 2 ? (20 * (2 - value)) : 20.0,
+                bottom: pageCount > 2
+                    ? currentPage == 2
+                        ? (20 * (2 - value))
+                        : 20.0
+                    : currentPage == 1
+                        ? (20 * (1 - value))
+                        : 20.0,
                 left: 0,
                 right: 0,
-                child: Opacity(
-                  opacity: currentPage == 2 ? (2 - value) : 1.0,
-                  child: Center(
-                    child: SizedBox(
-                      width: size.width * .8,
-                      child: MaterialButton(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        onPressed: () => _nextPage(),
-                        child: Text(
-                          'Next',
-                          style: TextStyle(
-                            fontSize: 20.0,
+                child: IgnorePointer(
+                  ignoring: pageCount > 2 ? currentPage == 2 : currentPage == 1,
+                  child: Opacity(
+                    opacity: pageCount > 2
+                        ? currentPage == 2
+                            ? (2 - value)
+                            : 1.0
+                        : currentPage == 1
+                            ? (1 - value)
+                            : 1.0,
+                    child: Center(
+                      child: SizedBox(
+                        width: size.width * .8,
+                        child: MaterialButton(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
                           ),
+                          onPressed: () => _nextPage(),
+                          child: Text(
+                            'Next',
+                            style: TextStyle(
+                              fontSize: 20.0,
+                            ),
+                          ),
+                          color: Colors.blue,
+                          textColor: Colors.white,
                         ),
-                        color: Colors.blue,
-                        textColor: Colors.white,
                       ),
                     ),
                   ),

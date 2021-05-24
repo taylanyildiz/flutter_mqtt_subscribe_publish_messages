@@ -59,17 +59,6 @@ class InputWidget extends StatelessWidget {
                 focusNode: nodes[i],
                 autofocus: true,
                 keyboardType: inputTypes[i],
-                inputFormatters: [
-                  inputTypes[i] == TextInputType.number && labels[i] == 'Host'
-                      ? FilteringTextInputFormatter.allow(RegExp(r'\d+\.?'))
-                      : inputTypes[i] == TextInputType.number
-                          // ignore: deprecated_member_use
-                          ? WhitelistingTextInputFormatter(
-                              RegExp(r"\d+([\.]\d+)?"))
-                          // ignore: deprecated_member_use
-                          : WhitelistingTextInputFormatter(
-                              RegExp(r"[a-z \. 0-9]")),
-                ],
                 validator: _validators,
                 decoration: InputDecoration(
                   labelText: labels[i],

@@ -1,13 +1,11 @@
 import 'dart:developer';
-
-import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:mqtt_exam/models/messages_model.dart';
 import 'package:mqtt_exam/models/mqtt_model.dart';
 
 /// Service class
-class MQTTService with ChangeNotifier {
+class MQTTService {
   /// Constructor for client and subscribe or publisher.
   MQTTService({
     this.host,
@@ -15,6 +13,7 @@ class MQTTService with ChangeNotifier {
     this.topic,
     this.userName,
     this.passWord,
+    this.model,
   });
 
   /// Connection server host adress.
@@ -34,11 +33,14 @@ class MQTTService with ChangeNotifier {
   /// you must entry password
   final String? passWord;
 
+  /// Listenin message model.
+  final MqttModel? model;
+
   late MqttServerClient _client;
 
   /// [MQTTService] initialize
-  Future<void> initializeMQTT() async {
-    _client = MqttServerClient(host!, 'taylanyildiz')
+  Future<bool> initializeMQTT() async {
+    _client = MqttServerClient(host!, 'taylanyildz')
       ..logging(on: false)
       ..port = port!
       ..keepAlivePeriod = 20
@@ -47,13 +49,14 @@ class MQTTService with ChangeNotifier {
       ..onConnected = onConnected;
 
     final mqttMsg = MqttConnectMessage()
-        .withClientIdentifier('clientIdentifier')
-        .withWillTopic('willTopic')
+        .withClientIdentifier('taylanyildz')
+        .withWillTopic('withWillTopic')
         .withWillMessage('willMessage')
         .startClean()
         .withWillQos(MqttQos.atLeastOnce);
     log('Connecting....');
     _client.connectionMessage = mqttMsg;
+    return await connectionMQTT();
   }
 
   /// Connection server
@@ -89,8 +92,7 @@ class MQTTService with ChangeNotifier {
   }
 
   void onConnected() {
-    print('onConnected');
-    MqttModel().addMessage(Messages(id: 0, message: 'message'));
+    print('Connected');
     listenServer();
   }
 
@@ -102,13 +104,17 @@ class MQTTService with ChangeNotifier {
         final MqttPublishMessage recMess = t[0].payload;
         final message =
             MqttPublishPayload.bytesToStringAsString(recMess.payload.message!);
+        print('message id : ${recMess.variableHeader?.messageIdentifier}');
+        print('message : $message');
+        int id = recMess.variableHeader!.messageIdentifier!;
+        model!.addMessage(Messages(id: id, message: message));
       });
     } catch (e) {
-      log('listen message : ${e.toString()}');
+      log(e.toString());
     }
   }
 
-  void publis(String message) {
+  void publish(String message) {
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
     _client.publishMessage(topic!, MqttQos.atLeastOnce, builder.payload!);
